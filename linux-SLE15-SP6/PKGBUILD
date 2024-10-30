@@ -1,8 +1,5 @@
-
-
 #Enable F2FS Support
 _enable_f2fs="true"
-
 
 pkgbase=linux-SLE15-SP6
 pkgver=6.4.0
@@ -71,19 +68,10 @@ prepare() {
     patch -Np1 < "../$src"
   done
 
-
   cd $srcdir
   cp ../config ../config_no_f2fs
-  #rm ../config
-  #cp ../config_no_f2fs ../config
-
-
-
+  
   if [[ "$_enable_f2fs" == "true" ]]; then
-        #echo "F2FS wird aktiviert..."
-
-        # Hier kannst du den Code zum Aktivieren von F2FS einfügen
-        # Zum Beispiel:
         sed -i '/# CONFIG_F2FS_FS is not set/{
             r /dev/stdin
             d
@@ -103,32 +91,12 @@ CONFIG_F2FS_FS_ZSTD=y
 CONFIG_F2FS_IOSTAT=y
 # CONFIG_F2FS_UNFAIR_RWSEM is not set
 EOF
-
         echo "F2FS succesfully activated."
     else
         echo "Using stock SLE config without F2FS"
-        #rm -f ../config
-        #mv ../config_no_f2fs ../config
         rm -f ../config_no_f2fs
     fi
 
-    # Weitere Schritte zur Installation des Pakets
-    # ...
-
-
-
-
-
-
-
-
-
-
-# Apply F2FS enable patch
-#  cd $srcdir
-#  cp ../config ../config_no_f2fs
-#  patch < enable-f2fs.txt ../config
-#
   echo "Setting config..."
   cd $_srcname
   cp ../config .config
@@ -137,17 +105,13 @@ EOF
 
   make -s kernelrelease > version
   echo "Prepared $pkgbase version $(<version)"
-#
+
   cd $srcdir
 
-  #if [[ -e ../config ]]; then
-  #  rm ../config  # Löschen, wenn ../config existiert
-  #fi
-
-# Just cleanup
+# cleanup
   if [[ -e ../config_no_f2fs ]]; then
-    rm -f ../config          # Löschen von ../config, falls es existiert
-    mv ../config_no_f2fs ../config  # Umbennen von ../config_no_f2fs zu ../config
+    rm -f ../config
+    mv ../config_no_f2fs ../config
   fi
 
 }
