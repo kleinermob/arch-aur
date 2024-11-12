@@ -36,6 +36,7 @@ jobs:
 
             # Switch to the non-root user and build all PKGBUILDs
             sudo -u builder bash -c '
+              export MAKEFLAGS="-j$(nproc)"
               cd /workspace
               find . -name "PKGBUILD" -execdir makepkg -s --noconfirm \;
             '
