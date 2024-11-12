@@ -1,7 +1,13 @@
-name: Build Multiple PKGBUILDs (Manual Trigger)
+name: Build Multiple PKGBUILDs
 
 on:
-  workflow_dispatch:  # Only manual trigger
+  push:
+    branches: 
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
 
 jobs:
   build:
@@ -11,17 +17,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Build all PKGBUILDs in Arch Linux container
+      - name: Build all PKGBUILDs in Arch Linux container as nobody
         uses: addnab/docker-run-action@v3
         with:
           image: archlinux:latest
           options: -v ${{ github.workspace }}:/workspace
           run: |
+            # Update the system and install required packages
             pacman -Syu --noconfirm
             pacman -S --noconfirm base-devel
 
-            # Find all PKGBUILD files and build each one
-            find /workspace -name "PKGBUILD" -execdir bash -c "makepkg -s --noconfirm" \;
+            # Adjust permissions for the nobody user
+            chown -R nobody /workspace
+
+            # Build each PKGBUILD as the nobody user
+            find /workspace -name "PKGBUILD" -execdir runuser -u nobody -- makepkg -s --noconfirm \;
 
       - name: Upload all built package artifacts
         uses: actions/upload-artifact@v3
