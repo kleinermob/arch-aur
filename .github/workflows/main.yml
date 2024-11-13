@@ -29,9 +29,9 @@ jobs:
           matrix_packages=$(echo "${{ steps.detect.outputs.package_folders }}" | sed 's/,/","/g')
           matrix_packages="[\"$matrix_packages\"]"
           
-          # Create the dynamic build workflow based on detected folders
+          # Create the dynamic build workflow using here-doc syntax
           mkdir -p .github/workflows
-          echo "
+          cat <<EOF > .github/workflows/dynamic-build.yml
 name: Build and Upload Packages
 
 on:
@@ -63,14 +63,14 @@ jobs:
       - name: Zip the package
         run: |
           folder_name="${{ matrix.package }}"
-          zip -j "/tmp/$folder_name.zip" "/tmp/$folder_name"/*.pkg.tar.zst
+          zip -r "/tmp/${folder_name}.zip" "/tmp/${folder_name}"/*.pkg.tar.zst
 
       - name: Upload the zip file as an artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.package }}-package
           path: "/tmp/${{ matrix.package }}.zip"
-" > .github/workflows/dynamic-build.yml
+EOF
 
           # Output the generated workflow for debugging
           cat .github/workflows/dynamic-build.yml
