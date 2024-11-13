@@ -28,7 +28,7 @@ jobs:
           # Convert comma-separated list into YAML array format
           matrix_packages=$(echo "${{ steps.detect.outputs.package_folders }}" | sed 's/,/","/g')
           matrix_packages="[\"$matrix_packages\"]"
-
+          
           # Create the dynamic build workflow based on detected folders
           mkdir -p .github/workflows
           echo "
