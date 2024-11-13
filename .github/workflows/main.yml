@@ -34,6 +34,8 @@ jobs:
             # Change ownership of the workspace directory to the new user
             chown -R builder /workspace
 
+            sudo chown -R builder:builder /home/runner/
+            
             # Switch to the non-root user and build all PKGBUILDs
             sudo -u builder bash -c '
               export MAKEFLAGS="-j$(nproc)"
