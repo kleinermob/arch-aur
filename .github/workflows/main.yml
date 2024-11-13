@@ -19,7 +19,7 @@ jobs:
 
       - name: Install dependencies and compile PKGBUILDs
         run: |
-          pacman -Syu --noconfirm base-devel sudo
+          pacman -Syu --noconfirm base-devel sudo hub
           useradd user -G wheel && echo "user ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
           chown user -R . 
 
@@ -38,7 +38,7 @@ jobs:
           # Loop through the built packages and zip them
           for dir in /tmp/*/; do
             if [ -f "$dir/*.pkg.tar.zst" ]; then
-              # Extract the folder name to use as the zip file name
+              # Extract the folder name to use for the zip file name
               folder_name=$(basename "$dir")
               echo "Creating zip for $folder_name"
               # Create a zip file with the .pkg.tar.zst file inside
