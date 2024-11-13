@@ -37,8 +37,15 @@ jobs:
 
       - name: Upload built packages individually
         run: |
+          # Loop through all built packages and upload each one separately
           for pkg in $(find . -name '*.pkg.tar.zst'); do
             pkg_name=$(basename "$pkg")
-            echo "Uploading $pkg_name..."
-            gh actions upload-artifact --name "$pkg_name" --path "$pkg"
+            folder_name=$(basename $(dirname "$pkg"))
+            echo "Uploading $folder_name..."
+            # Use actions/upload-artifact to upload each package individually
+            mkdir -p $HOME/$folder_name
+            cp "$pkg" $HOME/$folder_name/
+            actions/upload-artifact@v3:
+              name: "$folder_name"
+              path: $HOME/$folder_name/*
           done
