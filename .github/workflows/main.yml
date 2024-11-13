@@ -1,81 +1,38 @@
-name: Detect Folders and Trigger Dynamic Build Workflow
+name: Build and Upload Packages
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
   workflow_dispatch:
 
 jobs:
-  detect-folders:
+  build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package: ["linux-SLE15-SP6"]  # Add more packages as needed
+      fail-fast: false
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Detect package folders
-        id: detect
-        run: |
-          # Find directories containing PKGBUILD files and extract folder names
-          package_folders=$(find . -type f -name 'PKGBUILD' -exec dirname {} \; | sed 's|^\./||' | tr '\n' ',' | sed 's/,$//')
-          echo "Detected package folders: $package_folders"
-          echo "::set-output name=package_folders::$package_folders"
+      - name: Set up Arch Linux container
+        uses: docker://archlinux:latest
 
-      - name: Create dynamic build workflow
+      - name: Install dependencies for Arch Linux build
         run: |
-          # Convert comma-separated list into YAML array format
-          matrix_packages=$(echo "${{ steps.detect.outputs.package_folders }}" | sed 's/,/","/g')
-          matrix_packages="[\"$matrix_packages\"]"
-          
-          # Create the dynamic build workflow using echo with proper escaping
-          mkdir -p .github/workflows
-          echo "name: Build and Upload Packages
-          
-          on:
-            workflow_dispatch:
-          
-          jobs:
-            build:
-              runs-on: ubuntu-latest
-              strategy:
-                matrix:
-                  package: $matrix_packages
-                fail-fast: false
-          
-              steps:
-                - uses: actions/checkout@v4
-          
-                - name: Set up Arch Linux container
-                  uses: docker://archlinux:latest
-          
-                - name: Install dependencies for Arch Linux build
-                  run: |
-                    pacman -Sy --noconfirm base-devel sudo git
-                    sudo useradd user -G wheel && echo \"user ALL=(ALL) NOPASSWD: ALL\" | sudo tee -a /etc/sudoers
-          
-                - name: Compile PKGBUILD inside Arch container
-                  run: |
-                    su user -c \"cd /workspace/\${{ matrix.package }} && yes | PKGDEST=/tmp/\${{ matrix.package }} makepkg --noconfirm --skippgpcheck -s\"
-          
-                - name: Zip the package
-                  run: |
-                    folder_name=\"\${{ matrix.package }}\"
-                    zip -r \"/tmp/\${folder_name}.zip\" \"/tmp/\${folder_name}\"/*.pkg.tar.zst
-          
-                - name: Upload the zip file as an artifact
-                  uses: actions/upload-artifact@v4
-                  with:
-                    name: \${{ matrix.package }}-package
-                    path: \"/tmp/\${{ matrix.package }}.zip\"" > .github/workflows/dynamic-build.yml
-          
-          # Output the generated workflow for debugging
-          cat .github/workflows/dynamic-build.yml
-          
-          # Trigger the generated dynamic build workflow
-          curl -X POST \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github.v3+json" \
-            https://api.github.com/repos/${{ github.repository }}/actions/workflows/dynamic-build.yml/dispatches \
-            -d '{"ref":"main"}'
+          pacman -Sy --noconfirm base-devel sudo git
+          sudo useradd user -G wheel && echo "user ALL=(ALL) NOPASSWD: ALL" | sudo tee -a /etc/sudoers
+
+      - name: Compile PKGBUILD inside Arch container
+        run: |
+          su user -c "cd /workspace/${{ matrix.package }} && yes | PKGDEST=/tmp/${{ matrix.package }} makepkg --noconfirm --skippgpcheck -s"
+
+      - name: Zip the package
+        run: |
+          folder_name="${{ matrix.package }}"
+          zip -r "/tmp/${folder_name}.zip" "/tmp/${folder_name}"/*.pkg.tar.zst
+
+      - name: Upload the zip file as an artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.package }}-package
+          path: "/tmp/${{ matrix.package }}.zip"
