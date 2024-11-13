@@ -21,14 +21,18 @@ jobs:
         uses: addnab/docker-run-action@v3
         with:
           image: archlinux:latest
-          options: -v ${{ github.workspace }}:/workspace
+          options: -v /home/runner/work/arch-aur/arch-aur:/workspace
           run: |
+            # Install sudo, update system, and install base-devel
+            pacman -Sy --noconfirm sudo
             sudo pacman -Syu --noconfirm
-            sudo pacman -S --noconfirm base-devel sudo
+            sudo pacman -S --noconfirm base-devel
 
+            # Create a non-root user and grant necessary permissions
             sudo useradd -m builder
             echo 'builder ALL=(ALL) NOPASSWD: ALL' | sudo tee -a /etc/sudoers
 
+            # Change ownership of the workspace directory to the new user
             sudo chown -R builder /workspace
 
             # Run makepkg as non-root for all PKGBUILDs
@@ -38,6 +42,7 @@ jobs:
               find . -name "PKGBUILD" -execdir makepkg -s --noconfirm \;
             '
 
+            # Change ownership of the build artifacts to the runner user for upload
             sudo chown -R runner:runner /workspace
 
       - name: Upload all built package artifacts
