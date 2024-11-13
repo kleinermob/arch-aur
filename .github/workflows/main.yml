@@ -30,13 +30,17 @@ jobs:
             fi
           done
 
-      - name: Upload each built package separately
+      - name: Upload each built package separately with its folder name
         run: |
           for dir in /tmp/*/; do
+            # Check if there is a package file in the directory
             if [ -f "$dir/*.pkg.tar.zst" ]; then
-              # Extract the package file name and upload each one separately
-              package_name=$(basename $dir/*.pkg.tar.zst)
-              echo "Uploading $package_name"
-              upload-artifact --name "$package_name" --path "$dir/*.pkg.tar.zst"
+              # Extract folder name to use as the artifact name
+              folder_name=$(basename "$dir")
+              echo "Uploading package from $folder_name"
+              # Upload the package as a separate artifact with the folder name as the artifact name
+              echo "::set-output name=artifact_name::$folder_name"
+              # Upload artifact with the name of the folder
+              gh actions upload-artifact --name "$folder_name" --path "$dir/*.pkg.tar.zst"
             fi
           done
