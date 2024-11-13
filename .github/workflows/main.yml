@@ -10,49 +10,50 @@ on:
   workflow_dispatch:
 
 jobs:
+  detect-packages:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect package folders
+        id: detect
+        run: |
+          # Find directories with PKGBUILD files and output them as a comma-separated list
+          packages=$(find . -type f -name 'PKGBUILD' -exec dirname {} \; | sed 's|^\./||' | tr '\n' ',' | sed 's/,$//')
+          echo "Detected packages: $packages"
+          echo "::set-output name=packages::$packages"
+          
+  # Run separate jobs for each package detected
   build:
+    needs: detect-packages
     runs-on: ubuntu-latest
     container: archlinux:latest
+    strategy:
+      matrix:
+        package: ${{ fromJson(needs.detect-packages.outputs.packages) }}
+      fail-fast: false
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install dependencies and compile PKGBUILDs
+      - name: Install dependencies and compile PKGBUILD
         run: |
-          pacman -Syu --noconfirm base-devel sudo hub
+          pacman -Syu --noconfirm base-devel sudo
           useradd user -G wheel && echo "user ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
           chown user -R . 
 
-          # Build each PKGBUILD in the subdirectories
-          for dir in */; do
-            if [ -f "$dir/PKGBUILD" ]; then
-              su user -c "cd $dir && yes | PKGDEST=/tmp/$dir makepkg --noconfirm --skippgpcheck -s"
-            fi
-          done
+          # Build the PKGBUILD for the selected package in the matrix
+          su user -c "cd ${{ matrix.package }} && yes | PKGDEST=/tmp/${{ matrix.package }} makepkg --noconfirm --skippgpcheck -s"
 
-      - name: Zip and upload each package as a release asset
+      - name: Zip the package
         run: |
-          # Set up an array to hold the assets to upload
-          assets=()
-          
-          # Loop through the built packages and zip them
-          for dir in /tmp/*/; do
-            if [ -f "$dir/*.pkg.tar.zst" ]; then
-              # Extract the folder name to use for the zip file name
-              folder_name=$(basename "$dir")
-              echo "Creating zip for $folder_name"
-              # Create a zip file with the .pkg.tar.zst file inside
-              zip -j "/tmp/$folder_name.zip" "$dir"/*.pkg.tar.zst
-              # Add the zip file to the assets array
-              assets+=("-a" "/tmp/$folder_name.zip")
-            fi
-          done
+          # Create a zip for the built package
+          folder_name="${{ matrix.package }}"
+          echo "Creating zip for $folder_name"
+          zip -j "/tmp/$folder_name.zip" "/tmp/$folder_name"/*.pkg.tar.zst
 
-          # Get the current tag name from GitHub
-          tag_name="${GITHUB_REF##*/}"
-
-          # Use hub to create the release and upload assets
-          echo "Creating release $tag_name and uploading assets"
-          hub release create "${assets[@]}" -m "$tag_name" "$tag_name"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload the zip file as an artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.package }}-package
+          path: "/tmp/${{ matrix.package }}.zip"
