@@ -29,15 +29,16 @@ jobs:
           # Change ownership of the current directory to the user
           chown user -R .
 
-           # Use all cores for makepkg
+          # Use all cores for makepkg
           export MAKEFLAGS="-j$(nproc)"
 
           # Run makepkg as non-root user for all PKGBUILDs with signature check skipped
           su user -c "find . -name 'PKGBUILD' -execdir makepkg -s --noconfirm --skippgpcheck \;"
 
-      - name: Upload all built package artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: built-packages
-          path: '**/*.pkg.tar.zst'
-          if-no-files-found: warn
+      - name: Upload built packages individually
+        run: |
+          for pkg in $(find . -name '*.pkg.tar.zst'); do
+            pkg_name=$(basename "$pkg")
+            echo "Uploading $pkg_name..."
+            gh actions upload-artifact --name "$pkg_name" --path "$pkg"
+          done
