@@ -30,22 +30,29 @@ jobs:
             fi
           done
 
-      - name: Create and upload each package as a zip
+      - name: Zip and upload each package as a release asset
         run: |
-          # Loop through each built package
+          # Set up an array to hold the assets to upload
+          assets=()
+          
+          # Loop through the built packages and zip them
           for dir in /tmp/*/; do
             if [ -f "$dir/*.pkg.tar.zst" ]; then
-              # Extract the folder name to use as the zip name
+              # Extract the folder name to use as the zip file name
               folder_name=$(basename "$dir")
-              # Create a zip file containing the .pkg.tar.zst file
-              zip -r "/tmp/$folder_name.zip" "$dir/*.pkg.tar.zst"
-              echo "Uploading $folder_name.zip"
-              # Upload the zip file as a separate artifact
-              echo "::set-output name=artifact_name::$folder_name.zip"
-              # Upload the zip file as a separate artifact
-              actions/upload-artifact@v4
-                with:
-                  name: "$folder_name.zip"
-                  path: "/tmp/$folder_name.zip"
+              echo "Creating zip for $folder_name"
+              # Create a zip file with the .pkg.tar.zst file inside
+              zip -j "/tmp/$folder_name.zip" "$dir"/*.pkg.tar.zst
+              # Add the zip file to the assets array
+              assets+=("-a" "/tmp/$folder_name.zip")
             fi
           done
+
+          # Get the current tag name from GitHub
+          tag_name="${GITHUB_REF##*/}"
+
+          # Use hub to create the release and upload assets
+          echo "Creating release $tag_name and uploading assets"
+          hub release create "${assets[@]}" -m "$tag_name" "$tag_name"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
