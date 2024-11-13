@@ -35,23 +35,32 @@ jobs:
           # Run makepkg as non-root user for all PKGBUILDs with signature check skipped
           su user -c "find . -name 'PKGBUILD' -execdir makepkg -s --noconfirm --skippgpcheck \;"
 
-      - name: Upload built packages individually
+      - name: Find all built packages
+        id: find_packages
         run: |
-          # Loop through all built packages and create a separate step for each upload
-          for pkg in $(find . -name '*.pkg.tar.zst'); do
-            pkg_name=$(basename "$pkg")
-            folder_name=$(basename $(dirname "$pkg"))
-            echo "Uploading $folder_name..."
-            mkdir -p $HOME/$folder_name
-            cp "$pkg" $HOME/$folder_name/
-            
-            # Dynamically create a step for each artifact upload
-            echo "name: Upload $folder_name" >> $GITHUB_ENV
-            echo "path: $HOME/$folder_name/*" >> $GITHUB_ENV
+          # Find all .pkg.tar.zst files and collect the package paths
+          packages=$(find . -name '*.pkg.tar.zst')
+          # Loop through each found package
+          for pkg in $packages; do
+            # Extract the folder name (the directory of the package)
+            folder_name=$(dirname "$pkg")
+            # Add the folder name to the list of packages to upload
+            echo "::set-output name=packages::$folder_name"
           done
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ env.name }}
-          path: ${{ env.path }}
+      - name: Upload built packages individually
+        run: |
+          # Loop through all found packages based on folder names
+          for folder_name in ${{ steps.find_packages.outputs.packages }}; do
+            # Use the folder name as the artifact name
+            artifact_name=$(basename "$folder_name")
+            echo "Uploading $artifact_name..."
+
+            # Create a folder for the package and copy the package into it
+            mkdir -p $HOME/$artifact_name
+            cp "$folder_name/*.pkg.tar.zst" $HOME/$artifact_name/
+
+            # Upload each package as a separate artifact
+            actions/upload-artifact@v3:
+              name: "$artifact_name"
+              path: "$HOME/$artifact_name/*"
