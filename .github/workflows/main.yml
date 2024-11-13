@@ -45,22 +45,24 @@ jobs:
             # Extract the folder name (the directory of the package)
             folder_name=$(dirname "$pkg")
             # Add the folder name to the list of packages to upload
-            echo "::set-output name=packages::$folder_name"
+            echo "$folder_name" >> $GITHUB_ENV
           done
 
       - name: Upload built packages individually
         run: |
           # Loop through all found packages based on folder names
-          for folder_name in ${{ steps.find_packages.outputs.packages }}; do
+          for folder_name in $(echo ${{ env.packages }}); do
             # Use the folder name as the artifact name
             artifact_name=$(basename "$folder_name")
             echo "Uploading $artifact_name..."
-
+  
             # Create a folder for the package and copy the package into it
             mkdir -p $HOME/$artifact_name
             cp "$folder_name/*.pkg.tar.zst" $HOME/$artifact_name/
-
+  
             # Upload each package as a separate artifact
-            actions/upload-artifact@v3:
-              name: "$artifact_name"
-              path: "$HOME/$artifact_name/*"
+            - name: Upload $artifact_name
+              uses: actions/upload-artifact@v3
+              with:
+                name: "$artifact_name"
+                path: "$HOME/$artifact_name/*"
