@@ -1,3 +1,37 @@
+name: Generate Dynamic Build Workflow
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  generate-dynamic-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Detect directories with PKGBUILDs
+        run: |
+          # Find all directories that contain PKGBUILD files
+          packages=$(find . -type f -name 'PKGBUILD' -exec dirname {} \; | sed 's/^\.\///')
+          
+          # Generate matrix packages array
+          matrix_packages=$(echo "$packages" | sed 's/\n/","/g' | sed 's/^/["/' | sed 's/$/"]/')
+
+          # Save to a temporary file
+          echo "matrix_packages=$matrix_packages" > $GITHUB_ENV
+
+      - name: Create dynamic build workflow
+        run: |
+          # Dynamically generate dynamic-build.yml using the detected package names
+          cat > .github/workflows/dynamic-build.yml <<EOF
 name: Build and Upload Packages
 
 on:
@@ -8,7 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        package: ["linux-SLE15-SP6"]  # Add other package names if needed
+        package: ${{ env.matrix_packages }}
       fail-fast: false
 
     steps:
@@ -24,7 +58,7 @@ jobs:
 
       - name: Compile PKGBUILD inside Arch container
         run: |
-          su user -c "cd /workspace/${{ matrix.package }} && yes | PKGDEST=/tmp/${{ matrix.package }} makepkg --noconfirm --skippgpcheck -s"
+          su user -c "cd /workspace/\${{ matrix.package }} && yes | PKGDEST=/tmp/\${{ matrix.package }} makepkg --noconfirm --skippgpcheck -s"
 
       - name: List contents of /tmp/${{ matrix.package }}
         run: |
@@ -33,10 +67,14 @@ jobs:
       - name: Zip the package
         run: |
           folder_name="${{ matrix.package }}"
-          zip -r "/tmp/${folder_name}.zip" "/tmp/${folder_name}"/*.pkg.tar.zst
+          zip -r "/tmp/\${folder_name}.zip" "/tmp/\${folder_name}"/*.pkg.tar.zst
 
       - name: Upload the zip file as an artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.package }}-package
-          path: "/tmp/${{ matrix.package }}.zip"
+          name: \${{ matrix.package }}-package
+          path: "/tmp/\${{ matrix.package }}.zip"
+EOF
+
+      - name: Display the dynamic build workflow
+        run: cat .github/workflows/dynamic-build.yml
