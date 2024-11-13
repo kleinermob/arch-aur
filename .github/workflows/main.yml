@@ -37,15 +37,21 @@ jobs:
 
       - name: Upload built packages individually
         run: |
-          # Loop through all built packages and upload each one separately
+          # Loop through all built packages and create a separate step for each upload
           for pkg in $(find . -name '*.pkg.tar.zst'); do
             pkg_name=$(basename "$pkg")
             folder_name=$(basename $(dirname "$pkg"))
             echo "Uploading $folder_name..."
-            # Use actions/upload-artifact to upload each package individually
             mkdir -p $HOME/$folder_name
             cp "$pkg" $HOME/$folder_name/
-            actions/upload-artifact@v3:
-              name: "$folder_name"
-              path: $HOME/$folder_name/*
+            
+            # Dynamically create a step for each artifact upload
+            echo "name: Upload $folder_name" >> $GITHUB_ENV
+            echo "path: $HOME/$folder_name/*" >> $GITHUB_ENV
           done
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.name }}
+          path: ${{ env.path }}
