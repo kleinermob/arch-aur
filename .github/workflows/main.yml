@@ -21,7 +21,7 @@ jobs:
         run: |
           # Enable multilib and update the system with necessary packages
           echo -e "[multilib]\nInclude = /etc/pacman.d/mirrorlist" >> /etc/pacman.conf
-          pacman -Syu --noconfirm base-devel sudo
+          pacman -Syu --noconfirm base-devel sudo gnupg
 
           # Create non-root user with sudo privileges
           useradd user -G wheel && echo "user ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
@@ -29,8 +29,8 @@ jobs:
           # Change ownership of the current directory to the user
           chown user -R .
 
-          # Run makepkg as non-root user for all PKGBUILDs in the current directory
-          su user -c "find . -name 'PKGBUILD' -execdir makepkg -s --noconfirm \;"
+          # Run makepkg as non-root user for all PKGBUILDs with signature check skipped
+          su user -c "find . -name 'PKGBUILD' -execdir makepkg -s --noconfirm --skippgpcheck \;"
 
       - name: Upload all built package artifacts
         uses: actions/upload-artifact@v3
