@@ -40,18 +40,22 @@ jobs:
         run: |
           # Find all .pkg.tar.zst files and collect the package paths
           packages=$(find . -name '*.pkg.tar.zst')
+          # Initialize an empty array to hold folder names
+          folder_names=""
           # Loop through each found package
           for pkg in $packages; do
             # Extract the folder name (the directory of the package)
             folder_name=$(dirname "$pkg")
-            # Add the folder name to the list of packages to upload
-            echo "$folder_name" >> $GITHUB_ENV
+            # Append the folder name to the list
+            folder_names="$folder_names$folder_name "
           done
+          # Set the environment variable with all the folder names
+          echo "FOLDER_NAMES=$folder_names" >> $GITHUB_ENV
 
       - name: Upload built packages individually
         run: |
-          # Loop through all found packages based on folder names
-          for folder_name in $(echo ${{ env.packages }}); do
+          # Loop through each folder from the environment variable
+          for folder_name in ${{ env.FOLDER_NAMES }}; do
             # Use the folder name as the artifact name
             artifact_name=$(basename "$folder_name")
             echo "Uploading $artifact_name..."
