@@ -30,24 +30,22 @@ jobs:
             fi
           done
 
-      - name: Upload each built package separately with its folder name
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ github.workflow }}-builds
-          path: /tmp/*/*.pkg.tar.zst
-
-      # Upload each package separately using a loop
-      - name: Upload artifacts individually
+      - name: Create and upload each package as a zip
         run: |
+          # Loop through each built package
           for dir in /tmp/*/; do
-            # Check if the built package exists
             if [ -f "$dir/*.pkg.tar.zst" ]; then
-              # Extract the folder name to use as the artifact name
+              # Extract the folder name to use as the zip name
               folder_name=$(basename "$dir")
-              echo "Uploading artifact for $folder_name"
-              # Upload the package with its folder name as the artifact name
-              echo "::set-output name=artifact_name::$folder_name"
-              # Upload artifact
-              upload_artifact --name "$folder_name" --path "$dir/*.pkg.tar.zst"
+              # Create a zip file containing the .pkg.tar.zst file
+              zip -r "/tmp/$folder_name.zip" "$dir/*.pkg.tar.zst"
+              echo "Uploading $folder_name.zip"
+              # Upload the zip file as a separate artifact
+              echo "::set-output name=artifact_name::$folder_name.zip"
+              # Upload the zip file as a separate artifact
+              actions/upload-artifact@v4
+                with:
+                  name: "$folder_name.zip"
+                  path: "/tmp/$folder_name.zip"
             fi
           done
