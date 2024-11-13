@@ -17,39 +17,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Compile
+      - name: Install dependencies and compile PKGBUILDs
         run: |
-          # Enable multilib and update the system with necessary packages
-          echo -e "[multilib]\nInclude = /etc/pacman.d/mirrorlist" >> /etc/pacman.conf
-          pacman -Syu --noconfirm base-devel sudo gnupg
-
-          # Create non-root user with sudo privileges
+          pacman -Syu --noconfirm base-devel sudo
           useradd user -G wheel && echo "user ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+          chown user -R . 
 
-          # Change ownership of the current directory to the user
-          chown user -R .
-
-          # Use all cores for makepkg
-          export MAKEFLAGS="-j$(nproc)"
-
-          # Run makepkg as non-root user for all PKGBUILDs with signature check skipped
-          sudo -u user find . -name 'PKGBUILD' -execdir makepkg -s --noconfirm --skippgpcheck \; 2>/dev/null
-
-          # Clean up each directory: keep only the .pkg.tar.zst file
-          find . -type f -not -name "*.pkg.tar.zst" -exec rm -f {} \; 2>/dev/null
-          find . -type d -empty -exec rmdir {} \; 2>/dev/null
-
-          # Archive each directory containing .pkg.tar.zst into a tar.gz file
-          for dir in $(find . -type f -name "*.pkg.tar.zst" -exec dirname {} \; | sort -u); do
-            folder_name=$(basename "$dir")
-            tar -czf "$folder_name.tar.gz" -C "$dir" .
+          # Build each PKGBUILD in the subdirectories
+          for dir in */; do
+            if [ -f "$dir/PKGBUILD" ]; then
+              su user -c "cd $dir && yes | PKGDEST=/tmp/$dir makepkg --noconfirm --skippgpcheck -s"
+            fi
           done
 
-      - name: Upload each built package as an artifact
+      - name: Upload each built package separately
         run: |
-          for tarball in *.tar.gz; do
-            folder_name=$(basename "$tarball" .tar.gz)
-            echo "Uploading $folder_name..."
-            actions/upload-artifact@v3:
-              name: "$folder_name"
-              path: "$tarball"
+          for dir in /tmp/*/; do
+            if [ -f "$dir/*.pkg.tar.zst" ]; then
+              # Extract the package file name and upload each one separately
+              package_name=$(basename $dir/*.pkg.tar.zst)
+              echo "Uploading $package_name"
+              upload-artifact --name "$package_name" --path "$dir/*.pkg.tar.zst"
+            fi
+          done
