@@ -1,4 +1,4 @@
-name: Build Multiple PKGBUILDs
+name: Detect Folders and Trigger Dynamic Build Workflow
 
 on:
   push:
@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  detect-packages:
+  detect-folders:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -18,38 +18,47 @@ jobs:
       - name: Detect package folders
         id: detect
         run: |
-          # Find directories with PKGBUILD files and output them as a comma-separated list
-          packages=$(find . -type f -name 'PKGBUILD' -exec dirname {} \; | sed 's|^\./||' | tr '\n' ',' | sed 's/,$//')
-          echo "Detected packages: $packages"
-          echo "::set-output name=packages::$packages"
-          
-  # Run separate jobs for each package detected
+          # Find directories containing PKGBUILD files and extract folder names
+          package_folders=$(find . -type f -name 'PKGBUILD' -exec dirname {} \; | sed 's|^\./||' | tr '\n' ',' | sed 's/,$//')
+          echo "Detected package folders: $package_folders"
+          echo "::set-output name=package_folders::$package_folders"
+
+      - name: Create dynamic build workflow
+        run: |
+          # Create the dynamic build workflow based on detected folders
+          mkdir -p .github/workflows
+          echo "
+name: Build and Upload Packages
+
+on:
+  workflow_dispatch:
+
+jobs:
   build:
-    needs: detect-packages
     runs-on: ubuntu-latest
-    container: archlinux:latest
     strategy:
       matrix:
-        package: ${{ fromJson(needs.detect-packages.outputs.packages) }}
+        package: [${{ steps.detect.outputs.package_folders }}]
       fail-fast: false
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install dependencies and compile PKGBUILD
-        run: |
-          pacman -Syu --noconfirm base-devel sudo
-          useradd user -G wheel && echo "user ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
-          chown user -R . 
+      - name: Set up Arch Linux container
+        uses: docker://archlinux:latest
 
-          # Build the PKGBUILD for the selected package in the matrix
-          su user -c "cd ${{ matrix.package }} && yes | PKGDEST=/tmp/${{ matrix.package }} makepkg --noconfirm --skippgpcheck -s"
+      - name: Install dependencies for Arch Linux build
+        run: |
+          pacman -Sy --noconfirm base-devel sudo git
+          sudo useradd user -G wheel && echo "user ALL=(ALL) NOPASSWD: ALL" | sudo tee -a /etc/sudoers
+
+      - name: Compile PKGBUILD inside Arch container
+        run: |
+          su user -c "cd /workspace/${{ matrix.package }} && yes | PKGDEST=/tmp/${{ matrix.package }} makepkg --noconfirm --skippgpcheck -s"
 
       - name: Zip the package
         run: |
-          # Create a zip for the built package
           folder_name="${{ matrix.package }}"
-          echo "Creating zip for $folder_name"
           zip -j "/tmp/$folder_name.zip" "/tmp/$folder_name"/*.pkg.tar.zst
 
       - name: Upload the zip file as an artifact
@@ -57,3 +66,14 @@ jobs:
         with:
           name: ${{ matrix.package }}-package
           path: "/tmp/${{ matrix.package }}.zip"
+" > .github/workflows/dynamic-build.yml
+
+          # Output the generated workflow for debugging
+          cat .github/workflows/dynamic-build.yml
+
+          # Trigger the generated dynamic build workflow
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/dynamic-build.yml/dispatches \
+            -d '{"ref":"main"}'
