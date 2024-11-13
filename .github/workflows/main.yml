@@ -12,38 +12,25 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    container: archlinux:latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      - name: Build all PKGBUILDs in Arch Linux container as non-root
-        uses: addnab/docker-run-action@v3
-        with:
-          image: archlinux:latest
-          options: -v /home/runner/work/arch-aur/arch-aur:/workspace
-          run: |
-            # Install sudo, update system, and install base-devel
-            pacman -Sy --noconfirm sudo
-            sudo pacman -Syu --noconfirm
-            sudo pacman -S --noconfirm base-devel
+      - name: Compile
+        run: |
+          # Enable multilib and update the system with necessary packages
+          echo -e "[multilib]\nInclude = /etc/pacman.d/mirrorlist" >> /etc/pacman.conf
+          pacman -Syu --noconfirm base-devel sudo
 
-            # Create a non-root user and grant necessary permissions
-            sudo useradd -m builder
-            echo 'builder ALL=(ALL) NOPASSWD: ALL' | sudo tee -a /etc/sudoers
+          # Create non-root user with sudo privileges
+          useradd user -G wheel && echo "user ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
-            # Change ownership of the workspace directory to the new user
-            sudo chown -R builder /workspace
+          # Change ownership of the current directory to the user
+          chown user -R .
 
-            # Run makepkg as non-root for all PKGBUILDs
-            sudo -u builder bash -c '
-              export MAKEFLAGS="-j$(nproc)"
-              cd /workspace
-              find . -name "PKGBUILD" -execdir makepkg -s --noconfirm \;
-            '
-
-            # Change ownership of the build artifacts to the runner user for upload
-            sudo chown -R runner:runner /workspace
+          # Run makepkg as non-root user for all PKGBUILDs
+          su user -c "cd /workspace && find . -name 'PKGBUILD' -execdir makepkg -s --noconfirm \;"
 
       - name: Upload all built package artifacts
         uses: actions/upload-artifact@v3
