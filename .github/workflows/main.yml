@@ -29,52 +29,50 @@ jobs:
           matrix_packages=$(echo "${{ steps.detect.outputs.package_folders }}" | sed 's/,/","/g')
           matrix_packages="[\"$matrix_packages\"]"
           
-          # Create the dynamic build workflow using here-doc syntax
+          # Create the dynamic build workflow using echo with proper escaping
           mkdir -p .github/workflows
-          cat <<EOF > .github/workflows/dynamic-build.yml
-name: Build and Upload Packages
-
-on:
-  workflow_dispatch:
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        package: $matrix_packages
-      fail-fast: false
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Arch Linux container
-        uses: docker://archlinux:latest
-
-      - name: Install dependencies for Arch Linux build
-        run: |
-          pacman -Sy --noconfirm base-devel sudo git
-          sudo useradd user -G wheel && echo "user ALL=(ALL) NOPASSWD: ALL" | sudo tee -a /etc/sudoers
-
-      - name: Compile PKGBUILD inside Arch container
-        run: |
-          su user -c "cd /workspace/${{ matrix.package }} && yes | PKGDEST=/tmp/${{ matrix.package }} makepkg --noconfirm --skippgpcheck -s"
-
-      - name: Zip the package
-        run: |
-          folder_name="${{ matrix.package }}"
-          zip -r "/tmp/${folder_name}.zip" "/tmp/${folder_name}"/*.pkg.tar.zst
-
-      - name: Upload the zip file as an artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.package }}-package
-          path: "/tmp/${{ matrix.package }}.zip"
-EOF
-
+          echo "name: Build and Upload Packages
+          
+          on:
+            workflow_dispatch:
+          
+          jobs:
+            build:
+              runs-on: ubuntu-latest
+              strategy:
+                matrix:
+                  package: $matrix_packages
+                fail-fast: false
+          
+              steps:
+                - uses: actions/checkout@v4
+          
+                - name: Set up Arch Linux container
+                  uses: docker://archlinux:latest
+          
+                - name: Install dependencies for Arch Linux build
+                  run: |
+                    pacman -Sy --noconfirm base-devel sudo git
+                    sudo useradd user -G wheel && echo \"user ALL=(ALL) NOPASSWD: ALL\" | sudo tee -a /etc/sudoers
+          
+                - name: Compile PKGBUILD inside Arch container
+                  run: |
+                    su user -c \"cd /workspace/\${{ matrix.package }} && yes | PKGDEST=/tmp/\${{ matrix.package }} makepkg --noconfirm --skippgpcheck -s\"
+          
+                - name: Zip the package
+                  run: |
+                    folder_name=\"\${{ matrix.package }}\"
+                    zip -r \"/tmp/\${folder_name}.zip\" \"/tmp/\${folder_name}\"/*.pkg.tar.zst
+          
+                - name: Upload the zip file as an artifact
+                  uses: actions/upload-artifact@v4
+                  with:
+                    name: \${{ matrix.package }}-package
+                    path: \"/tmp/\${{ matrix.package }}.zip\"" > .github/workflows/dynamic-build.yml
+          
           # Output the generated workflow for debugging
           cat .github/workflows/dynamic-build.yml
-
+          
           # Trigger the generated dynamic build workflow
           curl -X POST \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
