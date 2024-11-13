@@ -2,7 +2,7 @@ name: Build Multiple PKGBUILDs
 
 on:
   push:
-    branches: 
+    branches:
       - main
   pull_request:
     branches:
@@ -35,38 +35,22 @@ jobs:
           # Run makepkg as non-root user for all PKGBUILDs with signature check skipped
           su user -c "find . -name 'PKGBUILD' -execdir makepkg -s --noconfirm --skippgpcheck \;"
 
-      - name: Find all built packages
-        id: find_packages
-        run: |
-          # Find all .pkg.tar.zst files and collect the package paths
-          packages=$(find . -name '*.pkg.tar.zst')
-          # Initialize an empty array to hold folder names
-          folder_names=""
-          # Loop through each found package
-          for pkg in $packages; do
-            # Extract the folder name (the directory of the package)
-            folder_name=$(dirname "$pkg")
-            # Append the folder name to the list
-            folder_names="$folder_names$folder_name "
-          done
-          # Set the environment variable with all the folder names
-          echo "FOLDER_NAMES=$folder_names" >> $GITHUB_ENV
-
       - name: Upload built packages individually
         run: |
-          # Loop through each folder from the environment variable
-          for folder_name in ${{ env.FOLDER_NAMES }}; do
+          # Find all the .pkg.tar.zst files
+          find . -name "*.pkg.tar.zst" | while read pkg; do
+            # Extract the folder name (the directory of the package)
+            folder_name=$(dirname "$pkg")
             # Use the folder name as the artifact name
             artifact_name=$(basename "$folder_name")
             echo "Uploading $artifact_name..."
   
             # Create a folder for the package and copy the package into it
             mkdir -p $HOME/$artifact_name
-            cp "$folder_name/*.pkg.tar.zst" $HOME/$artifact_name/
+            cp "$pkg" $HOME/$artifact_name/
   
-            # Upload each package as a separate artifact
-            - name: Upload $artifact_name
-              uses: actions/upload-artifact@v3
-              with:
-                name: "$artifact_name"
-                path: "$HOME/$artifact_name/*"
+            # Upload each folder as a separate artifact with the folder name
+            uses: actions/upload-artifact@v3
+            with:
+              name: "$artifact_name"
+              path: "$HOME/$artifact_name/*"
