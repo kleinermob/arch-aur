@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        package: ["linux-SLE15-SP6"]  # Add more packages as needed
+        package: ["linux-SLE15-SP6"]  # Add other package names if needed
       fail-fast: false
 
     steps:
@@ -25,6 +25,10 @@ jobs:
       - name: Compile PKGBUILD inside Arch container
         run: |
           su user -c "cd /workspace/${{ matrix.package }} && yes | PKGDEST=/tmp/${{ matrix.package }} makepkg --noconfirm --skippgpcheck -s"
+
+      - name: List contents of /tmp/${{ matrix.package }}
+        run: |
+          ls -lh /tmp/${{ matrix.package }}
 
       - name: Zip the package
         run: |
