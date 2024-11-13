@@ -29,8 +29,8 @@ jobs:
           # Change ownership of the current directory to the user
           chown user -R .
 
-          # Run makepkg as non-root user for all PKGBUILDs
-          su user -c "cd /workspace && find . -name 'PKGBUILD' -execdir makepkg -s --noconfirm \;"
+          # Run makepkg as non-root user for all PKGBUILDs in the current directory
+          su user -c "find . -name 'PKGBUILD' -execdir makepkg -s --noconfirm \;"
 
       - name: Upload all built package artifacts
         uses: actions/upload-artifact@v3
