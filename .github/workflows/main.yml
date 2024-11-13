@@ -29,6 +29,9 @@ jobs:
           # Change ownership of the current directory to the user
           chown user -R .
 
+           # Use all cores for makepkg
+          export MAKEFLAGS="-j$(nproc)"
+
           # Run makepkg as non-root user for all PKGBUILDs with signature check skipped
           su user -c "find . -name 'PKGBUILD' -execdir makepkg -s --noconfirm --skippgpcheck \;"
 
