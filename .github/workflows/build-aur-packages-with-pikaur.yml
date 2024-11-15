@@ -46,14 +46,15 @@ jobs:
       - name: Build Package Using Pikaur (as non-root user)
         working-directory: ${{ github.event.inputs.package_name }}
         run: |
-          # Set PKGDEST to a custom directory for the built package
-          export PKGDEST="/home/user/packages"
           # Build the AUR package using pikaur as non-root user
-          su user -c "MAKEFLAGS=\"-j$(nproc)\" pikaur -S --noconfirm --mflags=--skippgpcheck ${{ github.event.inputs.package_name }}"
+          su user -c "MAKEFLAGS=\"-j$(nproc)\" pikaur -Sw --noconfirm --mflags=--skippgpcheck ${{ github.event.inputs.package_name }}"
+          pwd
+          ls /home/user/.cache/pikaur/pkg
+          ls ~/.cache/pikaur/pkg
       - name: Upload Built Package
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.event.inputs.package_name }}  # Use the package_name as the artifact name
           path: |
-            /home/user/packages/*.pkg.tar.zst  # Path to the custom built packages directory
+            /home/user/.cache/pikaur/pkg/*.pkg.tar.zst  # Path to the custom built packages directory
           if-no-files-found: warn
