@@ -37,13 +37,13 @@ jobs:
           useradd user -G wheel && echo "user ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
           chown user -R .
 
-      - name: Build Package
+      - name: Build Package Using All Cores
         working-directory: ${{ github.event.inputs.package_name }}
         run: |
           su user -c "MAKEFLAGS=\"-j$(nproc)\" makepkg -s --noconfirm --skippgpcheck"
 
       - name: Upload Built Package
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4  # Updated to v4
         with:
           name: ${{ github.event.inputs.package_name }}
           path: |
