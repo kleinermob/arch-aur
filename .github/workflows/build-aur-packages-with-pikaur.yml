@@ -52,7 +52,7 @@ jobs:
         working-directory: ${{ github.event.inputs.package_name }}
         run: |
           # Build the AUR package using pikaur as non-root user
-          su user -c "MAKEFLAGS=\"-j$(nproc)\" pikaur -Sw --noconfirm --skippgpcheck ${{ github.event.inputs.package_name }}"
+          su user -c "MAKEFLAGS=\"-j$(nproc)\" pikaur -Sw --noconfirm --mflags=--skippgpcheck ${{ github.event.inputs.package_name }}"
 
       - name: Upload Built Package
         uses: actions/upload-artifact@v4
