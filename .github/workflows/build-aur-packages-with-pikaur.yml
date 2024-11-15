@@ -1,4 +1,4 @@
-name: Build AUR Package
+name: Build AUR Package Pikaur
 
 on:
   workflow_dispatch:
@@ -27,12 +27,17 @@ jobs:
           echo -e "[multilib]\nInclude = /etc/pacman.d/mirrorlist" >> /etc/pacman.conf
           pacman -Syu --noconfirm base-devel sudo git gnupg
 
-      - name: Install Pikaur
+      - name: Clone and Build Pikaur
         run: |
-          pacman -S --noconfirm pikaur  # Install pikaur to handle AUR dependencies
+          # Clone and build pikaur from AUR
+          git clone https://aur.archlinux.org/pikaur.git
+          cd pikaur
+          # Build pikaur using makepkg
+          su user -c "MAKEFLAGS=\"-j$(nproc)\" makepkg -si --noconfirm --skippgpcheck"
 
       - name: Clone AUR Package
         run: |
+          # Clone the requested package from the AUR
           git clone "https://aur.archlinux.org/${{ github.event.inputs.package_name }}.git"
           cd "${{ github.event.inputs.package_name }}"
 
