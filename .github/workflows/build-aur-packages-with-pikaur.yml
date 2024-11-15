@@ -56,9 +56,11 @@ jobs:
         run: |
           cd /home/user/.cache/pikaur/pkg
           for file in *.pkg.tar.zst; do
+          # Only rename files that contain a colon
+          if [[ "$file" == *:* ]]; then
           mv "$file" "$(echo $file | tr ':' '+')"
+          fi
           done
-          ls -l *.pkg.tar.zst
       - name: Upload Built Package
         uses: actions/upload-artifact@v4
         with:
