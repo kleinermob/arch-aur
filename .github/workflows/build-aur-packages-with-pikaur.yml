@@ -45,7 +45,7 @@ jobs:
       - name: Clone AUR Package (as non-root user)
         run: |
           # Clone the requested package from AUR as non-root user
-          git clone \"https://aur.archlinux.org/${{ github.event.inputs.package_name }}.git\"
+          git clone "https://aur.archlinux.org/${{ github.event.inputs.package_name }}.git"     
           cd "${{ github.event.inputs.package_name }}"
 
       - name: Build Package Using Pikaur (as non-root user)
