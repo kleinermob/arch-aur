@@ -1,4 +1,4 @@
-name: Build AUR Package Pikaur
+name: Build AUR Package
 
 on:
   workflow_dispatch:
@@ -27,44 +27,28 @@ jobs:
           echo -e "[multilib]\nInclude = /etc/pacman.d/mirrorlist" >> /etc/pacman.conf
           pacman -Syu --noconfirm base-devel sudo git gnupg
 
-      - name: Create User Without Password Prompt
+      - name: Create Non-Root User
         run: |
-          # Create user with a valid shell and home directory
           useradd -m -s /bin/bash user
-          # Allow the 'user' to run sudo without password prompt by modifying the sudoers file
           echo "user ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
-
-      - name: Set Permissions for Build Directory
-        run: |
-          # Ensure the working directory is writable by the user
-          sudo chown -R user:user /__w
-          sudo chmod -R u+rwx /__w
 
       - name: Clone and Build Pikaur
         run: |
-          # Clone pikaur from the AUR
+          # Clone and build pikaur from AUR
           git clone https://aur.archlinux.org/pikaur.git
           cd pikaur
-          # Build pikaur using makepkg and install it as the non-root user
+          # Build pikaur
           sudo -u user MAKEFLAGS="-j$(nproc)" makepkg -si --noconfirm --skippgpcheck
 
-      - name: Clone AUR Package
+      - name: Install Package Using Pikaur
         run: |
-          # Clone the requested package from the AUR
-          git clone "https://aur.archlinux.org/${{ github.event.inputs.package_name }}.git"
-          cd "${{ github.event.inputs.package_name }}"
-
-      - name: Build Package Using Pikaur
-        run: |
-          # Ensure the package directory has proper ownership
-          chown -R user:user ${{ github.event.inputs.package_name }}
-          # Use pikaur to handle AUR dependencies and build the package with MAKEFLAGS to utilize all cores
-          sudo -u user MAKEFLAGS="-j$(nproc)" pikaur -S --noconfirm --skippgpcheck ${{ github.event.inputs.package_name }}
+          # Use pikaur to install and build the requested AUR package
+          sudo -u user pikaur -S --noconfirm --skippgpcheck "${{ github.event.inputs.package_name }}"
 
       - name: Upload Built Package
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.event.inputs.package_name }}
           path: |
-            ${{ github.event.inputs.package_name }}/pkg/*.pkg.tar.zst  # Correct path to the built package
+            ${{ github.event.inputs.package_name }}/pkg/*.pkg.tar.zst
           if-no-files-found: warn
