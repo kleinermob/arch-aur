@@ -1,4 +1,4 @@
-name: Build AUR Package
+name: Build AUR Package Pikaur
 
 on:
   workflow_dispatch:
@@ -34,7 +34,9 @@ jobs:
           cd pikaur
           # Create user with a valid shell and home directory
           useradd -m -s /bin/bash user
-          # Build pikaur using makepkg and install it
+          # Change ownership of the directory to the user
+          chown -R user:user .
+          # Build pikaur using makepkg and install it as the non-root user
           sudo -u user MAKEFLAGS="-j$(nproc)" makepkg -si --noconfirm --skippgpcheck
 
       - name: Clone AUR Package
@@ -45,6 +47,8 @@ jobs:
 
       - name: Build Package Using Pikaur
         run: |
+          # Ensure the package directory has proper ownership
+          chown -R user:user ${{ github.event.inputs.package_name }}
           # Use pikaur to handle AUR dependencies and build the package with MAKEFLAGS to utilize all cores
           sudo -u user MAKEFLAGS="-j$(nproc)" pikaur -S --noconfirm --skippgpcheck ${{ github.event.inputs.package_name }}
 
