@@ -21,15 +21,18 @@ jobs:
             echo "Error: PACKAGE_NAME input is required."
             exit 1
           fi
+
       - name: Enable Multilib and Update System
         run: |
           echo -e "[multilib]\nInclude = /etc/pacman.d/mirrorlist" >> /etc/pacman.conf
           pacman -Syu --noconfirm base-devel sudo git gnupg
+
       - name: Create Non-Root User
         run: |
           useradd -m -s /bin/bash user
           echo "user ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
           chown -R user:user /home/user
+
       - name: Clone and Build Pikaur from AUR (as non-root user)
         run: |
           # Clone pikaur from AUR as non-root user
@@ -38,18 +41,21 @@ jobs:
           cd pikaur
           # Build pikaur using makepkg as non-root user
           su user -c "MAKEFLAGS=\"-j$(nproc)\" makepkg -si --noconfirm --skippgpcheck"
+
       - name: Clone AUR Package (as non-root user)
         run: |
           # Clone the requested package from AUR as non-root user
           git clone "https://aur.archlinux.org/${{ github.event.inputs.package_name }}.git"
           cd "${{ github.event.inputs.package_name }}"
+
       - name: Build Package Using Pikaur (as non-root user)
         working-directory: ${{ github.event.inputs.package_name }}
         run: |
           # Build the AUR package using pikaur as non-root user
           su user -c "MAKEFLAGS=\"-j$(nproc)\" pikaur -Sw --noconfirm --mflags=--skippgpcheck ${{ github.event.inputs.package_name }}"
           ls /home/user/.cache/pikaur/pkg
-       - name: Upload Built Package
+
+      - name: Upload Built Package
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.event.inputs.package_name }}  # Use the package_name as the artifact name
