@@ -34,6 +34,12 @@ jobs:
           # Allow the 'user' to run sudo without password prompt by modifying the sudoers file
           echo "user ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
+      - name: Set Permissions for Build Directory
+        run: |
+          # Ensure the working directory has the proper permissions for the user
+          chown -R user:user /__w/arch-aur/arch-aur
+          chmod -R u+rwx /__w/arch-aur/arch-aur
+
       - name: Clone and Build Pikaur
         run: |
           # Clone pikaur from the AUR
