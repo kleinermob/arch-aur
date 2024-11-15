@@ -40,7 +40,7 @@ jobs:
       - name: Build Package
         working-directory: ${{ github.event.inputs.package_name }}
         run: |
-          su user -c "makepkg -s --noconfirm --skippgpcheck"
+          su user -c "MAKEFLAGS=\"-j$(nproc)\" makepkg -s --noconfirm --skippgpcheck"
 
       - name: Upload Built Package
         uses: actions/upload-artifact@v3
