@@ -27,15 +27,18 @@ jobs:
           echo -e "[multilib]\nInclude = /etc/pacman.d/mirrorlist" >> /etc/pacman.conf
           pacman -Syu --noconfirm base-devel sudo git gnupg
 
+      - name: Create User Without Password Prompt
+        run: |
+          # Create user with a valid shell and home directory
+          useradd -m -s /bin/bash user
+          # Allow the 'user' to run sudo without password prompt by modifying the sudoers file
+          echo "user ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+
       - name: Clone and Build Pikaur
         run: |
           # Clone pikaur from the AUR
           git clone https://aur.archlinux.org/pikaur.git
           cd pikaur
-          # Create user with a valid shell and home directory
-          useradd -m -s /bin/bash user
-          # Change ownership of the directory to the user
-          chown -R user:user .
           # Build pikaur using makepkg and install it as the non-root user
           sudo -u user MAKEFLAGS="-j$(nproc)" makepkg -si --noconfirm --skippgpcheck
 
