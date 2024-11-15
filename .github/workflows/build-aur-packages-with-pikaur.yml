@@ -1,4 +1,4 @@
-name: Build AUR Package
+name: Build AUR Package Pikaur
 
 on:
   workflow_dispatch:
@@ -31,24 +31,32 @@ jobs:
         run: |
           useradd -m -s /bin/bash user
           echo "user ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+          chown user:user /home/user
 
-      - name: Clone and Build Pikaur
+      - name: Clone and Build Pikaur from AUR (as non-root user)
         run: |
-          # Clone and build pikaur from AUR
-          git clone https://aur.archlinux.org/pikaur.git
+          # Clone pikaur from AUR as non-root user
+          su user -c "git clone https://aur.archlinux.org/pikaur.git"
           cd pikaur
-          # Build pikaur
-          sudo -u user MAKEFLAGS="-j$(nproc)" makepkg -si --noconfirm --skippgpcheck
+          # Build pikaur using makepkg as non-root user
+          su user -c "MAKEFLAGS=\"-j$(nproc)\" makepkg -si --noconfirm --skippgpcheck"
 
-      - name: Install Package Using Pikaur
+      - name: Clone AUR Package (as non-root user)
         run: |
-          # Use pikaur to install and build the requested AUR package
-          sudo -u user pikaur -S --noconfirm --skippgpcheck "${{ github.event.inputs.package_name }}"
+          # Clone the requested package from AUR as non-root user
+          su user -c "git clone \"https://aur.archlinux.org/${{ github.event.inputs.package_name }}.git\""
+          cd "${{ github.event.inputs.package_name }}"
+
+      - name: Build Package Using Pikaur (as non-root user)
+        working-directory: ${{ github.event.inputs.package_name }}
+        run: |
+          # Build the AUR package using pikaur as non-root user
+          su user -c "MAKEFLAGS=\"-j$(nproc)\" pikaur -S --noconfirm --skippgpcheck ${{ github.event.inputs.package_name }}"
 
       - name: Upload Built Package
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.event.inputs.package_name }}
           path: |
-            ${{ github.event.inputs.package_name }}/pkg/*.pkg.tar.zst
+            ${{ github.event.inputs.package_name }}/*.pkg.tar.zst
           if-no-files-found: warn
