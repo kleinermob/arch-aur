@@ -36,9 +36,9 @@ jobs:
 
       - name: Set Permissions for Build Directory
         run: |
-          # Ensure the working directory has the proper permissions for the user
-          chown -R user:user /__w/arch-aur/arch-aur
-          chmod -R u+rwx /__w/arch-aur/arch-aur
+          # Ensure the working directory is writable by the user
+          sudo chown -R user:user /__w
+          sudo chmod -R u+rwx /__w
 
       - name: Clone and Build Pikaur
         run: |
