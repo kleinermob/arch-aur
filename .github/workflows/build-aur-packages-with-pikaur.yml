@@ -52,6 +52,13 @@ jobs:
           cd /home/user/.cache/pikaur/pkg
           echo "Listing files:"
           ls -l *.pkg.tar.zst
+      - name: Rename files to replace colon with plus
+        run: |
+          cd /home/user/.cache/pikaur/pkg
+          for file in *.pkg.tar.zst; do
+          mv "$file" "$(echo $file | tr ':' '+')"
+          done
+          ls -l *.pkg.tar.zst
       - name: Upload Built Package
         uses: actions/upload-artifact@v4
         with:
