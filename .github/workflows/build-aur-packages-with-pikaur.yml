@@ -1,0 +1,56 @@
+name: Build AUR Package
+
+on:
+  workflow_dispatch:
+    inputs:
+      package_name:
+        description: 'The name of the AUR package to build'
+        required: true
+        default: ''
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+
+    steps:
+      - name: Validate PACKAGE_NAME input
+        id: validate
+        run: |
+          if [ -z "${{ github.event.inputs.package_name }}" ]; then
+            echo "Error: PACKAGE_NAME input is required."
+            exit 1
+          fi
+
+      - name: Enable Multilib and Update System
+        run: |
+          echo -e "[multilib]\nInclude = /etc/pacman.d/mirrorlist" >> /etc/pacman.conf
+          pacman -Syu --noconfirm base-devel sudo git gnupg
+
+      - name: Install Pikaur
+        run: |
+          pacman -S --noconfirm pikaur  # Install pikaur to handle AUR dependencies
+
+      - name: Clone AUR Package
+        run: |
+          git clone "https://aur.archlinux.org/${{ github.event.inputs.package_name }}.git"
+          cd "${{ github.event.inputs.package_name }}"
+
+      - name: Create Non-Root User
+        run: |
+          useradd user -G wheel && echo "user ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+          chown user -R .
+
+      - name: Build Package Using Pikaur
+        working-directory: ${{ github.event.inputs.package_name }}
+        run: |
+          # Use pikaur to handle AUR dependencies and build the package with MAKEFLAGS to utilize all cores
+          su user -c "MAKEFLAGS=\"-j$(nproc)\" pikaur -S --noconfirm --skippgpcheck ${{ github.event.inputs.package_name }}"
+
+      - name: Upload Built Package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.event.inputs.package_name }}
+          path: |
+            ${{ github.event.inputs.package_name }}/pkg/*.pkg.tar.zst  # Correct path to the built package
+          if-no-files-found: warn
