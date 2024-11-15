@@ -53,5 +53,5 @@ jobs:
         with:
           name: ${{ github.event.inputs.package_name }}
           path: |
-            /home/user/.cache/pikaur/pkg/*.pkg.tar.zst  # Correct path to built packages
+            /home/user/.cache/pikaur/pkg/**/*.pkg.tar.zst  # Upload all .pkg.tar.zst files from subdirectories
           if-no-files-found: warn
