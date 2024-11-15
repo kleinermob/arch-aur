@@ -1,4 +1,4 @@
-name: Build AUR Package Pikaur
+name: Build AUR Package
 
 on:
   workflow_dispatch:
@@ -29,11 +29,13 @@ jobs:
 
       - name: Clone and Build Pikaur
         run: |
-          # Clone and build pikaur from AUR
+          # Clone pikaur from the AUR
           git clone https://aur.archlinux.org/pikaur.git
           cd pikaur
-          # Build pikaur using makepkg
-          su user -c "MAKEFLAGS=\"-j$(nproc)\" makepkg -si --noconfirm --skippgpcheck"
+          # Create user with a valid shell and home directory
+          useradd -m -s /bin/bash user
+          # Build pikaur using makepkg and install it
+          sudo -u user MAKEFLAGS="-j$(nproc)" makepkg -si --noconfirm --skippgpcheck
 
       - name: Clone AUR Package
         run: |
@@ -41,16 +43,10 @@ jobs:
           git clone "https://aur.archlinux.org/${{ github.event.inputs.package_name }}.git"
           cd "${{ github.event.inputs.package_name }}"
 
-      - name: Create Non-Root User
-        run: |
-          useradd user -G wheel && echo "user ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
-          chown user -R .
-
       - name: Build Package Using Pikaur
-        working-directory: ${{ github.event.inputs.package_name }}
         run: |
           # Use pikaur to handle AUR dependencies and build the package with MAKEFLAGS to utilize all cores
-          su user -c "MAKEFLAGS=\"-j$(nproc)\" pikaur -S --noconfirm --skippgpcheck ${{ github.event.inputs.package_name }}"
+          sudo -u user MAKEFLAGS="-j$(nproc)" pikaur -S --noconfirm --skippgpcheck ${{ github.event.inputs.package_name }}
 
       - name: Upload Built Package
         uses: actions/upload-artifact@v4
