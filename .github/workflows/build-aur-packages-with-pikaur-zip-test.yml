@@ -1,4 +1,4 @@
-name: Build AUR Package Pikaur
+name: Build AUR Package Pikaur Zip
 
 on:
   workflow_dispatch:
