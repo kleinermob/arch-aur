@@ -48,10 +48,8 @@ jobs:
         run: |
           # Build the AUR package using pikaur as non-root user
           su user -c "MAKEFLAGS=\"-j$(nproc)\" pikaur -Sw --noconfirm --mflags=--skippgpcheck ${{ github.event.inputs.package_name }}"
-          pwd
           ls /home/user/.cache/pikaur/pkg
-          ls ~/.cache/pikaur/pkg
-      - name: Upload Built Package
+       - name: Upload Built Package
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.event.inputs.package_name }}  # Use the package_name as the artifact name
