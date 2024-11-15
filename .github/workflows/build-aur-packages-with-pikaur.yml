@@ -53,12 +53,15 @@ jobs:
         run: |
           # Build the AUR package using pikaur as non-root user
           su user -c "MAKEFLAGS=\"-j$(nproc)\" pikaur -Sw --noconfirm --mflags=--skippgpcheck ${{ github.event.inputs.package_name }}"
-          ls /home/user/.cache/pikaur/pkg
+
+      - name: Debug: List Files in /home/user/.cache/pikaur/pkg
+        run: |
+          echo "Listing files in /home/user/.cache/pikaur/pkg:"
+          ls -l /home/user/.cache/pikaur/pkg
 
       - name: Upload Built Package
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.event.inputs.package_name }}  # Use the package_name as the artifact name
-          path: |
-            /home/user/.cache/pikaur/pkg/*.pkg.tar.zst  # Path to the custom built packages directory
+          path: /home/user/.cache/pikaur/pkg/*.pkg.tar.zst  # Absolute path
           if-no-files-found: warn
