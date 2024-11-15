@@ -1,80 +1,59 @@
-name: Generate Dynamic Build Workflow
+name: Build PKGBUILDs
 
 on:
   push:
-    branches:
+    branches: 
       - main
   pull_request:
     branches:
       - main
   workflow_dispatch:
-
-jobs:
-  generate-dynamic-build:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Detect directories with PKGBUILDs
-        run: |
-          # Find all directories that contain PKGBUILD files
-          packages=$(find . -type f -name 'PKGBUILD' -exec dirname {} \; | sed 's/^\.\///')
-          
-          # Generate matrix packages array
-          matrix_packages=$(echo "$packages" | sed 's/\n/","/g' | sed 's/^/["/' | sed 's/$/"]/')
-
-          # Save to a temporary file
-          echo "matrix_packages=$matrix_packages" > $GITHUB_ENV
-
-      - name: Create dynamic build workflow
-        run: |
-          # Dynamically generate dynamic-build.yml using the detected package names
-          cat > .github/workflows/dynamic-build.yml <<EOF
-name: Build and Upload Packages
-
-on:
-  workflow_dispatch:
+    inputs:
+      package_name:
+        description: 'The name of the package folder to build (contains the PKGBUILD)'
+        required: true
+        default: ''
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        package: ${{ env.matrix_packages }}
-      fail-fast: false
+    container: archlinux:latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v3
 
-      - name: Set up Arch Linux container
-        uses: docker://archlinux:latest
-
-      - name: Install dependencies for Arch Linux build
+      - name: Validate PACKAGE_NAME input
+        id: validate
         run: |
-          pacman -Sy --noconfirm base-devel sudo git
-          sudo useradd user -G wheel && echo "user ALL=(ALL) NOPASSWD: ALL" | sudo tee -a /etc/sudoers
+          if [ -z "${{ github.event.inputs.package_name }}" ]; then
+            echo "Error: PACKAGE_NAME input is required."
+            exit 1
+          fi
+          if [ ! -f "${{ github.event.inputs.package_name }}/PKGBUILD" ]; then
+            echo "Error: PKGBUILD not found in the specified package folder: ${{ github.event.inputs.package_name }}"
+            exit 1
+          fi
 
-      - name: Compile PKGBUILD inside Arch container
+      - name: Enable Multilib and Update System
         run: |
-          su user -c "cd /workspace/\${{ matrix.package }} && yes | PKGDEST=/tmp/\${{ matrix.package }} makepkg --noconfirm --skippgpcheck -s"
+          echo -e "[multilib]\nInclude = /etc/pacman.d/mirrorlist" >> /etc/pacman.conf
+          pacman -Syu --noconfirm base-devel sudo gnupg
 
-      - name: List contents of /tmp/${{ matrix.package }}
+      - name: Create Non-Root User
         run: |
-          ls -lh /tmp/${{ matrix.package }}
+          useradd user -G wheel && echo "user ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+          chown user -R .
 
-      - name: Zip the package
+      - name: Compile Specified Package
+        working-directory: ${{ github.event.inputs.package_name }}
         run: |
-          folder_name="${{ matrix.package }}"
-          zip -r "/tmp/\${folder_name}.zip" "/tmp/\${folder_name}"/*.pkg.tar.zst
+          su user -c "makepkg -s --noconfirm --skippgpcheck"
 
-      - name: Upload the zip file as an artifact
-        uses: actions/upload-artifact@v4
+      - name: Upload Built Package
+        uses: actions/upload-artifact@v3
         with:
-          name: \${{ matrix.package }}-package
-          path: "/tmp/\${{ matrix.package }}.zip"
-EOF
-
-      - name: Display the dynamic build workflow
-        run: cat .github/workflows/dynamic-build.yml
+          name: ${{ github.event.inputs.package_name }}
+          path: |
+            ${{ github.event.inputs.package_name }}/*.pkg.tar.zst
+          if-no-files-found: warn
