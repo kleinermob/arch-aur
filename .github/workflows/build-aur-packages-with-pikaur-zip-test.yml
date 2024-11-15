@@ -24,7 +24,7 @@ jobs:
       - name: Enable Multilib and Update System
         run: |
           echo -e "[multilib]\nInclude = /etc/pacman.d/mirrorlist" >> /etc/pacman.conf
-          pacman -Syu --noconfirm base-devel sudo git gnupg
+          pacman -Syu --noconfirm base-devel sudo git gnupg zip
       - name: Create Non-Root User
         run: |
           useradd -m -s /bin/bash user
