@@ -47,7 +47,7 @@ jobs:
         working-directory: ${{ github.event.inputs.package_name }}
         run: |
           # Build the AUR package using pikaur as non-root user
-          su user -c "MAKEFLAGS=\"-j$(nproc)\" pikaur -Sw --noconfirm --mflags=--skippgpcheck ${{ github.event.inputs.package_name }}"
+          su user -c "MAKEFLAGS=\"-j$(nproc)\" pikaur -Sw --noconfirm --mflags="--skippgpcheck --skipinteg" ${{ github.event.inputs.package_name }}"
           echo "Changing to the /home/user/.cache/pikaur/pkg directory"
           cd /home/user/.cache/pikaur/pkg
           echo "Listing files:"
