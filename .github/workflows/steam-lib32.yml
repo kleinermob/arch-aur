@@ -1,4 +1,4 @@
-name: Steam Lib32 Packages
+name: Steam native runtime
 
 on:
   workflow_dispatch:
@@ -12,26 +12,28 @@ jobs:
       - name: Enable Multilib and Update System
         run: |
           echo -e "[multilib]\nInclude = /etc/pacman.d/mirrorlist" >> /etc/pacman.conf
-          pacman -Syu --noconfirm base-devel zip
+          pacman -Syu --noconfirm base-devel
 
-      - name: Download lib32 Packages and Dependencies
+      - name: Download steam-native-runtime Package and Dependencies
         run: |
           mkdir -p /home/arch/cache
-          lib32_packages="lib32-alsa-lib lib32-alsa-plugins lib32-atk lib32-cairo lib32-curl lib32-dbus-glib lib32-fontconfig lib32-freetype2 lib32-freeglut lib32-gdk-pixbuf2 lib32-glew1.10 lib32-glib2 lib32-glu lib32-gtk2 lib32-libcaca lib32-libcanberra lib32-libcups lib32-libcurl-compat lib32-libcurl-gnutls lib32-dbus lib32-libdrm lib32-libgcrypt15 lib32-libice lib32-libidn11 lib32-libjpeg6 lib32-libnm lib32-pipewire lib32-libpng12 lib32-libpulse lib32-librtmp0 lib32-libsm lib32-libtheora lib32-libtiff4 lib32-libudev0-shim lib32-libusb lib32-libva lib32-libvdpau lib32-libvorbis lib32-libvpx1.3 lib32-libxcomposite lib32-libxcursor lib32-libxft lib32-libxi lib32-libxinerama lib32-libxmu lib32-libxrandr lib32-libxrender lib32-libxtst lib32-libxxf86vm lib32-nspr lib32-openal lib32-openssl-1.1 lib32-pango lib32-sdl lib32-sdl2 lib32-sdl2_image lib32-sdl2_mixer lib32-sdl2_ttf lib32-sdl_image lib32-sdl_mixer lib32-sdl_ttf lib32-vulkan-driver lib32-vulkan-icd-loader lib32-libappindicator-gtk2 lib32-libindicator-gtk2 lib32-libdbusmenu-glib lib32-libdbusmenu-gtk2"
-          pacman -Sy --noconfirm --needed --downloadonly --cachedir=/home/arch/cache $lib32_packages
-          echo "Packages downloaded to /home/arch/cache"
+          pacman -Sy --noconfirm --needed --downloadonly --cachedir=/home/arch/cache steam-native-runtime
+          echo "Package and its dependencies downloaded to /home/arch/cache"
           ls -l /home/arch/cache
 
-      - name: Zip the Downloaded Packages
+      - name: Extract the Downloaded Packages
         run: |
-          cd /home/arch/cache
-          zip -r lib32-packages.zip ./*.pkg.tar.zst
-          echo "Created archive: lib32-packages.zip"
-          ls -l
+          mkdir -p /home/arch/extracted
+          for pkg in /home/arch/cache/*.pkg.tar.zst; do
+            echo "Extracting $pkg"
+            tar -xvf "$pkg" -C /home/arch/extracted
+          done
+          echo "Extraction complete"
+          ls -l /home/arch/extracted
 
-      - name: Upload Downloaded Packages
+      - name: Upload Extracted Files
         uses: actions/upload-artifact@v4
         with:
-          name: lib32-packages
-          path: /home/arch/cache/lib32-packages.zip
+          name: steam-native-runtime-extracted
+          path: /home/arch/extracted/
           if-no-files-found: warn
