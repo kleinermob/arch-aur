@@ -1,4 +1,4 @@
-name: Build AUR Package
+name: Artix Package build from Source
 
 on:
   workflow_dispatch:
