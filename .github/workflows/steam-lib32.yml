@@ -1,4 +1,4 @@
-name: Steam native runtime
+name: Steam Download Arch
 
 on:
   workflow_dispatch:
@@ -11,10 +11,10 @@ jobs:
     steps:
       - name: Enable Multilib and Update System
         run: |
-          echo -e "[multilib]\nInclude = /etc/pacman.d/mirrorlist" >> /etc/pacman.conf
+          echo -e "[multilib]\nInclude = /etc/pacman.d/mirrorlist" >> /etc/pman.conf
           pacman -Syu --noconfirm base-devel
 
-      - name: Download steam-native-runtime Package and Dependencies
+      - name: Download steam Package and Dependencies
         run: |
           mkdir -p /home/arch/cache
           pacman -Sy --noconfirm --needed --downloadonly --cachedir=/home/arch/cache steam-native-runtime
@@ -30,6 +30,13 @@ jobs:
           done
           echo "Extraction complete"
           ls -l /home/arch/extracted
+
+      - name: Clean Up Downloaded Package Files
+        run: |
+          echo "Cleaning up downloaded .pkg.tar.zst files..."
+          rm -f /home/arch/cache/*.pkg.tar.zst
+          echo "Cleanup complete"
+          ls -l /home/arch/cache
 
       - name: Upload Extracted Files
         uses: actions/upload-artifact@v4
