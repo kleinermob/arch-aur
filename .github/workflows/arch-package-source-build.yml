@@ -1,0 +1,51 @@
+name: Arch Package build from Source
+
+on:
+  workflow_dispatch:
+    inputs:
+      package_name:
+        description: 'The name of the AUR package to build'
+        required: true
+        default: ''
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+
+    steps:
+      - name: Validate PACKAGE_NAME input
+        id: validate
+        run: |
+          if [ -z "${{ github.event.inputs.package_name }}" ]; then
+            echo "Error: PACKAGE_NAME input is required."
+            exit 1
+          fi
+
+      - name: Enable Multilib and Update System
+        run: |
+          echo -e "[multilib]\nInclude = /etc/pacman.d/mirrorlist" >> /etc/pacman.conf
+          pacman -Syu --noconfirm base-devel sudo git gnupg
+
+      - name: Clone AUR Package
+        run: |
+          git clone "https://gitlab.archlinux.org/archlinux/packaging/packages/${{ github.event.inputs.package_name }}.git"
+          cd "${{ github.event.inputs.package_name }}"
+
+      - name: Create Non-Root User
+        run: |
+          useradd user -G wheel && echo "user ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+          chown user -R .
+
+      - name: Build Package Using All Cores
+        working-directory: ${{ github.event.inputs.package_name }}
+        run: |
+          su user -c "MAKEFLAGS=\"-j$(nproc)\" makepkg -s --noconfirm --skippgpcheck"
+
+      - name: Upload Built Package
+        uses: actions/upload-artifact@v4  # Updated to v4
+        with:
+          name: ${{ github.event.inputs.package_name }}
+          path: |
+            ${{ github.event.inputs.package_name }}/*.pkg.tar.zst
+          if-no-files-found: warn
