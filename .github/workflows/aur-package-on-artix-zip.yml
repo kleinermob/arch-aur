@@ -38,6 +38,11 @@ jobs:
           cd pikaur
           # Build pikaur using makepkg as non-root user
           su user -c "MAKEFLAGS=\"-j$(nproc)\" makepkg -si --noconfirm --skippgpcheck"
+      - name: Clone AUR Package (as non-root user)
+        run: |
+          # Clone the requested package from AUR as non-root user
+          git clone "https://aur.archlinux.org/${{ github.event.inputs.package_name }}.git"
+          cd "${{ github.event.inputs.package_name }}"
       - name: Build Package Using Pikaur (as non-root user)
         working-directory: ${{ github.event.inputs.package_name }}
         run: |
