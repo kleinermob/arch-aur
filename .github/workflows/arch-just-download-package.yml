@@ -1,0 +1,49 @@
+name: Arch just download package
+
+on:
+  workflow_dispatch:
+    inputs:
+      package_name:
+        description: 'The name of the AUR package to build'
+        required: true
+        default: ''
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+
+    steps:
+      - name: Validate PACKAGE_NAME input
+        id: validate
+        run: |
+          if [ -z "${{ github.event.inputs.package_name }}" ]; then
+            echo "Error: PACKAGE_NAME input is required."
+            exit 1
+          fi
+
+      - name: Enable Multilib and Update System
+        run: |
+          echo -e "[multilib]\nInclude = /etc/pacman.d/mirrorlist" >> /etc/pacman.conf
+          pacman -Syu --noconfirm base-devel sudo git gnupg
+
+      - name: Download group packages
+        run: |
+          sudo pacman -Sy --noconfirm
+          group_name="${{ github.event.inputs.package_name }}"  # Replace with your group
+          sudo pacman -Sw $group_name --noconfirm
+
+      - name: Upload group packages
+        run: |
+          group_name="${{ github.event.inputs.package_name }}"  # Replace with your group
+          cache_dir="/var/cache/pacman/pkg"
+          mkdir -p upload
+          for package in $(pacman -Sg $group_name | awk '{print $2}'); do
+            cp $cache_dir/$package-* upload/ 2>/dev/null || true
+          done
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: pacman-group-packages
+          path: upload/
