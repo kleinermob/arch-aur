@@ -42,8 +42,12 @@ jobs:
             cp $cache_dir/$package-* upload/ 2>/dev/null || true
           done
 
-      - name: Upload artifacts
+      - name: Create zip archive
+        run: |
+          zip -r group-packages.zip upload/
+
+      - name: Upload zipped packages
         uses: actions/upload-artifact@v3
         with:
           name: pacman-group-packages
-          path: upload/
+          path: group-packages.zip
