@@ -13,6 +13,9 @@ makedepends=(
   pahole
   perl
   python
+  rust
+  rust-bindgen
+  rust-src
   tar
   xz
 
@@ -46,6 +49,7 @@ b2sums=('SKIP'
 
 export KBUILD_BUILD_HOST=archlinux
 export KBUILD_BUILD_USER=$pkgbase
+export KBUILD_BUILD_TIMESTAMP="$(date -Ru${SOURCE_DATE_EPOCH:+d @$SOURCE_DATE_EPOCH})"
 
 prepare() {
   cd $_srcname
@@ -64,26 +68,13 @@ prepare() {
     patch -Np1 < "../$src"
   done
 
-  cd $srcdir
-
-
   echo "Setting config..."
-  cd $_srcname
   cp ../config .config
   make olddefconfig
   diff -u ../config .config || :
 
   make -s kernelrelease > version
   echo "Prepared $pkgbase version $(<version)"
-
-  cd $srcdir
-
-# cleanup
-  if [[ -e ../config_no_f2fs ]]; then
-    rm -f ../config
-    mv ../config_no_f2fs ../config
-  fi
-
 }
 
 build() {
@@ -101,8 +92,9 @@ _package() {
     kmod
   )
   optdepends=(
-    'wireless-regdb: to set the correct wireless channels of your country'
     'linux-firmware: firmware images needed for some devices'
+    'scx-scheds: to use sched-ext schedulers'
+    'wireless-regdb: to set the correct wireless channels of your country'
   )
   provides=(
     KSMBD-MODULE
